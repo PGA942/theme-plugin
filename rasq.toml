@@ -1,0 +1,9 @@
+schema = "rasq.workspace/1"
+sdk = "0.1.0"
+
+[author]
+namespace = "sample"
+
+[[packs]]
+name = "starry"
+id = "sample.theme-starry"
