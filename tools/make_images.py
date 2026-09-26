@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""星空テーマの画像を作る(packs/starry/theme/ に 4 枚)。
+"""着せ替えの画像を作る(packs/starry/theme/ に 4 枚、packs/rasq/theme/ に 1 枚)。
 
     pip3 install pillow   # 依存は Pillow だけ
-    python3 tools/make_images.py
+    python3 tools/make_images.py [--rasq-icon <rasq_icon.png>]
 
 乱数はシード固定なので、何度走らせても同じ画像になる(差分が出ない)。
 どれも 1 枚 2 MiB・合計 16 MiB(docs/slots.md §2.10 / §2.12 の上限)よりずっと小さい。
@@ -12,17 +12,27 @@
                         postTile に above で重ねる
 - button.png  96x96     透過の藍色の角丸のにじみ。actionButton の背景(fill)
 - heart.png   128x128   透過の淡い黄色の星のアイコン。favorite_border(いいね)の差し替え
+
+packs/rasq/theme/(「RASQ」):
+- rasq_mark_faded.png  RASQ のマーク(rasq-client の packages/rasq_design/assets/brand/rasq_icon.png、透過 PNG)の
+                       不透明度を 0.12 倍にしたもの(大きさは元のまま、約 400px)。postTile の右寄せの背景(below)。
+                       元の絵は --rasq-icon で指す(既定 = このリポジトリの隣の rasq-client)。見つからなければ作らない
 """
 
 from __future__ import annotations
 
+import argparse
 import math
 import os
 import random
 
 from PIL import Image, ImageDraw, ImageFilter
 
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "packs", "starry", "theme")
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(REPO, "packs", "starry", "theme")
+OUT_RASQ = os.path.join(REPO, "packs", "rasq", "theme")
+RASQ_ICON = os.path.join(REPO, "..", "..", "rasq-client", "packages", "rasq_design", "assets", "brand", "rasq_icon.png")
+MARK_ALPHA = 0.12
 PALE_YELLOW = (255, 244, 200)
 WHITE = (255, 255, 255)
 
@@ -130,12 +140,30 @@ def star_icon(size: int = 128) -> Image.Image:
     return Image.alpha_composite(img, body)
 
 
+def faded_mark(src: str, alpha: float = MARK_ALPHA) -> Image.Image:
+    """透過 PNG の不透明度(アルファ)だけを alpha 倍する。色と大きさはそのまま。"""
+    im = Image.open(src).convert("RGBA")
+    im.putalpha(im.getchannel("A").point(lambda v: round(v * alpha)))
+    return im
+
+
+def save(out: str, name: str, im: Image.Image) -> None:
+    os.makedirs(out, exist_ok=True)
+    path = os.path.join(out, name)
+    im.save(path, optimize=True)
+    print(f"{os.path.relpath(path)}: {im.size[0]}x{im.size[1]} {im.mode} {os.path.getsize(path)} bytes")
+
+
 def main() -> None:
-    os.makedirs(OUT, exist_ok=True)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--rasq-icon", default=RASQ_ICON, help="RASQ のマーク(透過 PNG)。既定: 隣の rasq-client の rasq_icon.png")
+    args = ap.parse_args()
     for name, im in (("sky.png", sky()), ("stars.png", stars()), ("button.png", button()), ("heart.png", star_icon())):
-        path = os.path.join(OUT, name)
-        im.save(path, optimize=True)
-        print(f"{os.path.relpath(path)}: {im.size[0]}x{im.size[1]} {im.mode} {os.path.getsize(path)} bytes")
+        save(OUT, name, im)
+    if os.path.isfile(args.rasq_icon):
+        save(OUT_RASQ, "rasq_mark_faded.png", faded_mark(args.rasq_icon))
+    else:
+        print(f"skip: {args.rasq_icon} が無いので packs/rasq/theme/rasq_mark_faded.png は作りません(--rasq-icon で指す)")
 
 
 if __name__ == "__main__":

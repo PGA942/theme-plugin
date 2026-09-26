@@ -7,3 +7,7 @@ namespace = "sample"
 [[packs]]
 name = "starry"
 id = "sample.theme-starry"
+
+[[packs]]
+name = "rasq"
+id = "sample.theme-rasq"
